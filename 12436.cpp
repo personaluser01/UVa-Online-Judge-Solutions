@@ -1,7 +1,7 @@
 /*
  * 12436
- * TOPIC: segment tree with updates
- * status: TLE
+ * TOPIC: segment tree with lazy updates
+ * status: Accepted
  */
 #include <cassert>
 #include <cctype>
@@ -44,7 +44,11 @@ private:
 	}
 
 	void add_arithmetic_sequence( int v, int i, int j, i64 A, i64 D ) {
-		push_down(v,i,j);
+		if ( pending[v] ) {
+			int k = (i+j)>>1;
+			assign_value(L(v),i,k,value[v]), assign_value(R(v),k+1,j,value[v]);
+			pending[v] = false, a0[v] = d0[v] = 0;
+		}
 		a0[v] += A, d0[v] += D;
 		sum[v] += (((A+A+(j-i)*D)*(j-i+1)) >> 1);
 	}
