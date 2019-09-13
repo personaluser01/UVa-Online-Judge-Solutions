@@ -18,37 +18,45 @@ int id[256],w[A],target,c[A],len,pos[A],
 unsigned int present,same_frequency[N];
 
 bool f( unsigned int covered, int i, int cur_cost ) {
-    if ( i == len )
+    auto remaining= (~covered & present);
+    if ( not remaining )
         return cur_cost == target;
-    assert( i < len );
     if ( cur_cost > target )
-        return false ;
-    assert( i < len and covered != present );
-    auto remaining= ~covered & present;
-    if ( (target-cur_cost) < (i+1)*w[highest_freq[remaining]] )
-        return false ;
-    if ( (i+1)*sum_freq[~covered & present]+cur_cost > target )
-        return false ;
-    if ( A*sum_freq[~covered & present]+cur_cost < target )
         return false ;
     if ( sum_freq[remaining]*i+smallest_possible[remaining]+cur_cost > target )
         return false ;
     if ( sum_freq[remaining]*(A-__builtin_popcount(remaining))+largest_possible[remaining]+cur_cost < target )
         return false ;
+    assert( remaining );
+    int low= i, high= A-__builtin_popcount(remaining), mid;
+    assert( sum_freq[remaining]*high+largest_possible[remaining]+cur_cost >= target );
+    int j= i;
+    if ( sum_freq[remaining]*low+largest_possible[remaining]+cur_cost >= target )
+        j= low;
+    else {
+        assert( sum_freq[remaining]*low+largest_possible[remaining]+cur_cost < target );
+        for ( ;low+1 < high; )
+            sum_freq[remaining]*(mid=(low+high)/2)+largest_possible[remaining]+cur_cost >= target ? (high= mid):(low= mid);
+        j= high;
+    }
+    assert( j < A );
+    for ( int l= i; l <= j-1; layout[l++]= '\0' ) ;
     for ( unsigned int ch, prev= MASK(A+1), u= remaining; u; u&= ~same_frequency[prev= w[id[ch]]] ) {
         ch= a[which[L(u)]];
         assert( w[id[ch]] != prev );
-        pos[id[layout[i] = ch]] = i;
+        pos[id[layout[j] = ch]] = j;
         auto x = id[ch];
-        if ( f(covered|L(u), i+1, cur_cost+(pos[x]+1)*w[x]) )
+        if ( f(covered|L(u), j+1, cur_cost+(pos[x]+1)*w[x]) )
             return true;
     }
-    return f(covered,i+1,cur_cost);
+    return f(covered,j+1,cur_cost);
+    //return false ;
 }
 
 int main() {
-    int i,j,k;
+    int i,j,k,l;
     unsigned int u,v;
+    int absent[A];
 #ifndef ONLINE_JUDGE
     freopen("input.txt","r",stdin);
 #endif
@@ -69,7 +77,7 @@ int main() {
             for ( k= 0, i= 0; i < A; ++i )
                 if ( u & BIT(i) )
                     indices[k++]= i;
-            sort(indices,indices+k,[&]( const auto &a, const auto &b )->bool {
+            sort(indices,indices+k,[&]( const int &a, const int &b )->bool {
                 return w[a] < w[b];
             });
             smallest_possible[u]= largest_possible[u]= 0;
@@ -84,16 +92,15 @@ int main() {
             same_frequency[w[which[L(u)]]]|= L(u);
         for ( u= present; u; u&= ~L(u) )
             c[len++]= a[which[L(u)]];
+        for ( i= 0, l= 0; i < A; ++i )
+            if ( !(present & BIT(i)) )
+                absent[l++]= i;
         assert( len == __builtin_popcount(present) );
         sscanf(fgets(buff,sizeof buff,stdin),"%d",&target);
-        u= (~present & MASK(A));
-        if ( not f(0,0,0) )
-            for ( i= 0; i < len; ++i )
-                layout[i]= c[i];
-        //else printf("Success\n")    ;
-        for ( i= len; i < A; ++i )
-            layout[i]= a[which[L(u)]], u&= ~L(u);
-        printf("%s\n",layout);
+        for ( f(0,0,0), i= 0, l= 0; l < A; ++l )
+            if ( !layout[l] )
+                layout[l]= a[absent[i++]];
+        layout[A]= '\0', printf("%s\n",layout);
     }
     return 0;
 }
