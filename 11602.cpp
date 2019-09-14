@@ -34,7 +34,7 @@ bool f( unsigned int covered, int i, int cur_cost ) {
     int low= i, high= A-__builtin_popcount(remaining), mid;
     assert( sum_freq[remaining]*high+largest_possible[remaining]+cur_cost >= target );
     int j= i;
-#if 0
+#if 1
     if ( sum_freq[remaining]*low+largest_possible[remaining]+cur_cost >= target )
         j= low;
     else {
@@ -51,15 +51,16 @@ bool f( unsigned int covered, int i, int cur_cost ) {
     for ( unsigned int ch, prev= MASK(A+1), u= remaining; u; u&= ~same_frequency[prev= w[ch]] ) {
         ch= alphabet[which[L(u)]];
         assert( w[ch] != prev );
-        pos[new_id[layout[j] = ch]] = j;
+        layout[j] = ch;
         auto x = new_id[ch];
-        if ( cur_cost+(pos[x]+1)*w[ch] > target )
+        if ( cur_cost+(j+1)*w[ch] > target )
             break ;
-        if ( f(covered|L(u), j+1, cur_cost+(pos[x]+1)*w[ch]) )
+        if ( f(covered|L(u), j+1, cur_cost+(j+1)*w[ch]) )
             return true;
     }
     layout[j]= '\0';
-    return f(covered,j+1,cur_cost);
+    return false ;
+    //return f(covered,j+1,cur_cost);
 }
 
 int main() {
