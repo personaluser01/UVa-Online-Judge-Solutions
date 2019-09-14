@@ -9,7 +9,7 @@ using namespace std;
 #define N 0x400
 #define A 19
 
-char which[1<<20],buff[N],layout[A+1],alphabet[A+1];
+char which[1<<20],buff[N],layout[A+1],alphabet[A+1],bts[1<<20];
 const char *a= "_abcdefghilmnoprstu";
 int w[256],target,c[A],len,pos[A],
     highest_freq[1<<A],sum_freq[1<<A],
@@ -17,6 +17,7 @@ int w[256],target,c[A],len,pos[A],
     largest_possible[1<<A];
 unsigned int present,same_frequency[N];
 int perm[A],inverse_perm[A],new_id[256];
+set<int> possible_sum[1<<A];
 
 bool f( unsigned int covered, int i, int cur_cost ) {
     auto remaining= ((~covered) & present);
@@ -24,14 +25,14 @@ bool f( unsigned int covered, int i, int cur_cost ) {
         return cur_cost == target;
     if ( cur_cost > target )
         return false ;
-    if ( A-i < __builtin_popcount(remaining) )
+    if ( A-i < bts[remaining] )
         return false ;
     if ( sum_freq[remaining]*i+smallest_possible[remaining]+cur_cost > target )
         return false ;
-    if ( sum_freq[remaining]*(A-__builtin_popcount(remaining))+largest_possible[remaining]+cur_cost < target )
+    if ( sum_freq[remaining]*(A-bts[remaining])+largest_possible[remaining]+cur_cost < target )
         return false ;
     assert( remaining );
-    int low= i, high= A-__builtin_popcount(remaining), mid;
+    int low= i, high= A-bts[remaining], mid;
     assert( sum_freq[remaining]*high+largest_possible[remaining]+cur_cost >= target );
     int j= i;
 #if 1
@@ -47,8 +48,20 @@ bool f( unsigned int covered, int i, int cur_cost ) {
     assert( j < A );
     if ( sum_freq[remaining]*j+smallest_possible[remaining]+cur_cost > target )
         return false ;
+#if 1
+    int sum_needed= target-cur_cost-sum_freq[remaining]*j;
+    if ( 2 <= A-j and A-j <= 3 and bts[remaining] == (A-j) and possible_sum[remaining].find(sum_needed) == possible_sum[remaining].end() )
+        return false ;
+#endif
     for ( int l= i; l <= j-1; layout[l++]= '\0' ) ;
-    for ( unsigned int ch, prev= MASK(A+1), u= remaining; u; u&= ~same_frequency[prev= w[ch]] ) {
+    auto discarded= remaining & ~remaining;
+    for ( unsigned int ch, prev= MASK(A+1), u= remaining; u;
+            discarded|= (remaining&same_frequency[w[ch]]),
+            u&= ~same_frequency[prev= w[ch]] ) {
+        if ( bts[discarded] > (A-(j+1)) )
+            break ;
+        if ( sum_freq[discarded]*(j+2)+smallest_possible[discarded]+cur_cost > target )
+            break ;
         ch= alphabet[which[L(u)]];
         assert( w[ch] != prev );
         layout[j] = ch;
@@ -59,8 +72,8 @@ bool f( unsigned int covered, int i, int cur_cost ) {
             return true;
     }
     layout[j]= '\0';
-    return false ;
-    //return f(covered,j+1,cur_cost);
+    //return false ;
+    return f(covered,j+1,cur_cost);
 }
 
 int main() {
@@ -71,14 +84,18 @@ int main() {
     freopen("input.txt","r",stdin);
 #endif
     for ( i= 0; i < 20; which[BIT(i)]= i, ++i ) ;
+    for ( u= 1; u < (1<<20); ++u )
+        bts[u]= bts[u>>1]+(u&1);
     for ( layout[A]= '\0' ;fgets(buff,sizeof buff,stdin) and 0[buff] != '*'; ) {
         for ( memset(w,0,sizeof w), i= 0; buff[i] and buff[i] != '\n'; ++w[buff[i++]] ) ;
         for ( l= 0; a[l]; alphabet[l]= a[l], ++l ) ;
         sort(alphabet,alphabet+A,[&]( const char &x, const char &y)->bool {
             return w[x] < w[y];
         });
-        for ( i= 0; i < A; ++i )
-            assert(w[alphabet[i]] <= w[alphabet[i]]);
+        for ( u= 0; u < (1<<A); ++u )
+            possible_sum[u].clear();
+        for ( i= 0; i < A-1; ++i )
+            assert(w[alphabet[i]] <= w[alphabet[i+1]]);
         for ( i= 0; i < A; ++i )
             new_id[alphabet[i]]= i;
         for ( len= 0, present= 0, i= 0; buff[i] and buff[i] != '\n'; ++i )
@@ -104,6 +121,19 @@ int main() {
             if ( !(present & BIT(i)) )
                 absent[l++]= i;
         sscanf(fgets(buff,sizeof buff,stdin),"%d",&target);
+        for ( u= 0; u < (1<<A); ++u )
+            if ( bts[u] >= 2 and bts[u] <= 3 ) {
+                int indices[3];
+                for ( k= 0, i= 0; i < A; ++i )
+                    if ( u & BIT(i) )
+                        indices[k++]= i;
+                do {
+                   int sm= 0;
+                   for ( i= 0; i < k; ++i )
+                       sm+= (i+1)*w[alphabet[indices[i]]];
+                   possible_sum[u].insert(sm);
+                } while ( next_permutation(indices,indices+k) ) ;
+            }
         assert( f(0,0,0) );
         for ( i= 0, l= 0; l < A; ++l )
             if ( !layout[l] )
