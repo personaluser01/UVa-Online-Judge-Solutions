@@ -4,27 +4,13 @@
 #include <bits/stdc++.h>
 #define MOD (0xffffffffffffffffull)
 #define Q (100100)
-#define N (1<<21)
-#define MAXP (3*Q)
+#define N (1000001)
 using namespace std;
 using u64= unsigned long long;
-#define enlist(l) (unique_points[len++]= k)
 
-int unique_points[MAXP],len,
-    tp[Q],lft[Q],rgt[Q],n,
-    qrp[Q],queries,
-    rnk[N];
+int tp[Q],lft[Q],rgt[Q],n,
+    qrp[Q],queries;
 u64 ans[Q];
-
-void rank_space_reduction( int *x, int n ) {
-    for ( int i= 0; i < n; ++i )
-        rnk[x[i]]= lower_bound(unique_points,unique_points+n,x[i])-unique_points, x[i]= rnk[x[i]];
-}
-
-int original_value( int r ) {
-    assert( 0 <= r and r < n );
-    return unique_points[r];
-}
 
 enum class event_type {
     Insertion,
@@ -44,36 +30,57 @@ struct event {
         this->type= other.type, this->idx= other.idx, this->time= other.time;
         return *this;
     }
+    event( const event &other ) {
+        this->type= other.type, this->idx= other.idx, this->time= other.time;
+    }
+    bool operator < ( const event &b ) {
+        if ( time < b.time )
+            return true ;
+        if ( time > b.time )
+            return false ;
+        if ( type == b.type )
+            return false ;
+        if ( type == event_type::Insertion )
+            return true ;
+        return type == event_type::Query and b.type == event_type::Deletion;
+    }
 };
-
-bool operator < ( const event &a, const event &b ) {
-    if ( a.time < b.time )
-        return true ;
-    if ( a.time > b.time )
-        return false ;
-    if ( a.type == b.type )
-        return false ;
-    if ( a.type == event_type::Insertion )
-        return true ;
-    return a.type == event_type::Query and b.type == event_type::Deletion;
-}
 
 bool operator == ( const event &a, const event &b ) {
     return a.type == b.type and a.idx == b.idx and a.time == b.time;
 }
 
+bool operator < ( const event &a, const event &b ) {
+    if ( a == b )
+        return false ;
+    if ( a.time < b.time )
+        return false ;
+    if ( a.time > b.time )
+        return true;
+    if ( a.type == b.type )
+        return false;
+    if ( a.type == event_type::Insertion )
+        return true ;
+    return not(a.type == event_type::Query and b.type == event_type::Deletion);
+}
+
+bool operator > ( const event &a, const event &b ) {
+    return b < a;
+}
+
 u64 prefix[3][N];
 
 u64 operator / ( const event &a, const event &b ) {
-    assert( b.time >= a.time );
+    //assert( b.time >= a.time );
     return prefix[tp[a.idx]-1][b.time-a.time];
 }
 
-priority_queue<event,vector<event>,greater<>> pq;
+//priority_queue<event,vector<event>,greater<>> pq;
+priority_queue<event,vector<event>> pq;
 set<event> status_line;
 
 int main() {
-    int i,k,ts,cs= 0,m,qr;
+    int i,ts,cs= 0,m,qr;
 #ifndef ONLINE_JUDGE
     freopen("input.txt","r",stdin);
 #endif
@@ -85,27 +92,14 @@ int main() {
             prefix[i][u] &= MOD;
     }
     for ( scanf("%d",&ts); ts-- and 2 == scanf("%d %d",&n,&m); ) {
-        for ( len= 0, i= 0; i < m; ++i ) {
+        for ( i= 0; i < m; ++i )
             scanf("%d %d %d",tp+i,lft+i,rgt+i);
-            enlist(lft[i]), enlist(rgt[i]);
-            // push a new event, together with its removal one, into pq
-        }
-        for ( scanf("%d",&qr), queries= 0; qr-- and 1 == scanf("%d",&k); ++queries ) {
-            qrp[queries]= k;
-            enlist(k);
-            // push a query event into pq
-        }
-#if 0
-        sort(unique_points,unique_points+len);
-        n= unique(unique_points,unique_points+len)-unique_points;
-        rank_space_reduction(lft,m);
-        rank_space_reduction(rgt,m);
-        rank_space_reduction(qrp,queries);
-#endif
+        for ( scanf("%d",&qr), queries= 0; qr-- and 1 == scanf("%d",&qrp[queries++]); ) ;
         for ( i= 0; i < m; ++i )
             pq.push(event(event_type::Insertion,i,lft[i]));
         for ( i= 0; i < queries; ++i )
-            pq.push({event_type::Query,i,qrp[i]});
+            pq.push(event(event_type::Query,i,qrp[i]));
+        status_line.clear();
         for ( u64 curr= 0; not pq.empty(); ) {
             const event &e= pq.top(); pq.pop();
             if ( e.type == event_type::Insertion ) {
@@ -114,15 +108,17 @@ int main() {
                 continue ;
             }
             if ( e.type == event_type::Deletion ) {
-                status_line.erase(event(event_type::Insertion,e.idx,lft[e.idx]));
+                auto res= status_line.erase(event(event_type::Insertion,e.idx,lft[e.idx]));
+                //assert( res > 0 );
                 curr+= prefix[tp[e.idx]-1][rgt[e.idx]-lft[e.idx]], curr&= MOD;
                 continue ;
             }
-            auto &_ans= ans[e.idx]; _ans= curr;
-            for ( const auto &entry: status_line )
-                _ans+= entry / e, _ans&= MOD;
+            //assert( e.type == event_type::Query );
+            ans[e.idx]= curr;
+            for ( const auto &entry: status_line ) {
+                ans[e.idx] += entry / e, ans[e.idx] &= MOD;
+            }
         }
-        assert( status_line.empty() );
         printf("Case %d:\n",++cs);
         for ( i= 0; i < queries; printf("%llu\n",ans[i++]) ) ;
     }
