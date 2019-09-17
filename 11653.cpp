@@ -59,9 +59,12 @@ bool operator < ( const event &a, const event &b ) {
         return true;
     if ( a.type == b.type )
         return false;
-    if ( a.type == event_type::Insertion )
+    return a.type != event_type::Query;
+    /*
+    if ( a.type == event_type::Query )
         return true ;
     return not(a.type == event_type::Query and b.type == event_type::Deletion);
+     */
 }
 
 bool operator > ( const event &a, const event &b ) {
@@ -77,7 +80,12 @@ u64 operator / ( const event &a, const event &b ) {
 
 //priority_queue<event,vector<event>,greater<>> pq;
 priority_queue<event,vector<event>> pq;
-set<event> status_line;
+//set<event> status_line;
+map<int,int> series[3];
+
+u64 calculate( int t, int l, int r ) {
+    return prefix[t][r-l];
+}
 
 int main() {
     int i,ts,cs= 0,m,qr;
@@ -99,25 +107,40 @@ int main() {
             pq.push(event(event_type::Insertion,i,lft[i]));
         for ( i= 0; i < queries; ++i )
             pq.push(event(event_type::Query,i,qrp[i]));
-        status_line.clear();
+        //status_line.clear();
+        for ( int tt= 0; tt < 3; series[tt++].clear() ) ;
         for ( u64 curr= 0; not pq.empty(); ) {
             const event &e= pq.top(); pq.pop();
             if ( e.type == event_type::Insertion ) {
                 pq.push(event(event_type::Deletion,e.idx,rgt[e.idx]));
-                status_line.insert(e);
+                //status_line.insert(e);
+                auto &mp= series[tp[e.idx]-1];
+                if ( mp.count(lft[e.idx]) )
+                    ++mp[lft[e.idx]];
+                else mp[lft[e.idx]]= 1;
                 continue ;
             }
             if ( e.type == event_type::Deletion ) {
-                auto res= status_line.erase(event(event_type::Insertion,e.idx,lft[e.idx]));
+                //auto res= status_line.erase(event(event_type::Insertion,e.idx,lft[e.idx]));
                 //assert( res > 0 );
                 curr+= prefix[tp[e.idx]-1][rgt[e.idx]-lft[e.idx]], curr&= MOD;
+                auto &mp= series[tp[e.idx]-1];
+                if( not --mp[lft[e.idx]] )
+                    mp.erase(lft[e.idx]);
                 continue ;
             }
             //assert( e.type == event_type::Query );
             ans[e.idx]= curr;
-            for ( const auto &entry: status_line ) {
+            /*for ( const auto &entry: status_line ) {
                 ans[e.idx] += entry / e, ans[e.idx] &= MOD;
             }
+            */
+            for ( int tt= 0; tt < 3; ++tt )
+                for ( const auto &it: series[tt] ) {
+                    assert( it.first <= qrp[e.idx] );
+                    ans[e.idx]+= it.second*calculate(tt,it.first,qrp[e.idx]);
+                    ans[e.idx]&= MOD;
+                }
         }
         printf("Case %d:\n",++cs);
         for ( i= 0; i < queries; printf("%llu\n",ans[i++]) ) ;
