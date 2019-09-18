@@ -99,7 +99,7 @@ void build( int v, int i, int j ) {
 void push_down( int v, int i, int j ) {
     if ( i < j and upd[v] ) {
         // FIXME: j-i+1 should be something like original[j]-original[i]+1
-        total[v]+= upd[v](j-i+1), total[v]&= MOD;
+        total[v]+= upd[v](original[j]-original[i]+1), total[v]&= MOD;
         auto pr= upd[v].split(i,j);
         upd[2*v]+= pr.first, upd[2*v+1]+= pr.second;
         upd[v]= 0;
@@ -111,13 +111,13 @@ void push_up( int v, int i, int j ) {
         total[v]= total[2*v]+total[2*v+1], total[v]&= MOD;
 }
 
-void update( int v, int i, int j, int qi, int qj, composite_sum c ) {
+void update( int v, int i, int j, int qi, int qj, const composite_sum &c ) {
     push_down(v,i,j);
     if ( qi > j or qj < i ) return ;
     if ( qi <= i and j <= qj ) {
         //TODO
         // original values start to matter here
-        upd[v]= c.trim(i,j);
+        //upd[v]= c.trim(i,j);
         return ;
     }
     auto k= (i+j)>>1;
