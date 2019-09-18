@@ -9,6 +9,8 @@
 using namespace std;
 using u64= unsigned long long;
 #define enlist(x) (unique_pts[len++]= x)
+#define LEVO(k) ((k)<<1)
+#define PRAVO(k) (LEVO(k)+1)
 
 int tp[Q],lft[Q],rgt[Q],n,
     qrp[Q],queries,rnk[3*Q],len,
@@ -45,21 +47,24 @@ public:
         gamma+= rhs.gamma;
         delta+= rhs.delta;
     }
-    pair<composite_sum,composite_sum> split( int l, int r ) {
-        auto m= (l+r)>>1;
-        u64 k= m+1-l, k2= ((k*k)&MOD), k3= ((k2*k)&MOD);
-        return make_pair(composite_sum(alpha,beta,gamma,delta),
-                composite_sum(
-                        alpha+beta*k+gamma*k2+delta*k3,
-                        beta+2*gamma*k+3*k2*delta,
-                        gamma+3*delta*k,
-                        delta));
+    composite_sum split( int l, int r ) {
+        return split((l+r)>>1);
+    }
+    composite_sum split( int m ) const {
+        assert( m >= 1 );
+        u64 k= m-1, k2= ((k*k)&MOD), k3= ((k2*k)&MOD);
+        return {
+                alpha+beta*k+gamma*k2+ k3*delta,
+                      beta+2*gamma*k+3*k2*delta,
+                             gamma+   3*k*delta,
+                                          delta
+               };
     }
     void operator = ( const int x ) {
-        alpha= beta= gamma= delta= 0;
+        alpha= beta= gamma= delta= x;
     }
     operator bool() const {
-        return (alpha or beta or gamma or delta);
+        return alpha != 0 or beta != 0 or gamma != 0 or delta != 0;
     }
     static composite_sum uno() {
         return {1,0,0,0};
@@ -88,51 +93,52 @@ composite_sum operator + ( const composite_sum &a, const composite_sum &b ) {
     return {a.alpha+b.alpha, a.beta+b.beta, a.gamma+b.gamma, a.delta+b.delta};
 }
 
+inline bool intersect( int a, int b, int p, int q ) {
+    return not(q < a or b < p);
+}
+
 void build( int v, int i, int j ) {
     total[v]= 0, upd[v]= 0;
     if ( i < j ) {
         auto k= (i+j)>>1;
-        build(2*v,i,k), build(2*v+1,k+1,j);
+        build(LEVO(v),i,k), build(PRAVO(v),k+1,j);
     }
 }
 
 void push_down( int v, int i, int j ) {
-    if ( i < j and upd[v] ) {
-        // FIXME: j-i+1 should be something like original[j]-original[i]+1
-        total[v]+= upd[v](original[j]-original[i]+1), total[v]&= MOD;
-        auto pr= upd[v].split(i,j);
-        upd[2*v]+= pr.first, upd[2*v+1]+= pr.second;
-        upd[v]= 0;
-    }
+    if ( not upd[v] ) return ;
+    if ( i < j )
+        upd[LEVO(v)]+= upd[v], upd[PRAVO(v)]+= upd[v].split(i,j);
+    total[v]+= upd[v](original[j]-original[i]+1), total[v]&= MOD;
+    upd[v]= 0;
 }
 
 void push_up( int v, int i, int j ) {
     if ( i < j )
-        total[v]= total[2*v]+total[2*v+1], total[v]&= MOD;
+        total[v]= total[LEVO(v)]+total[PRAVO(v)], total[v]&= MOD;
 }
 
 void update( int v, int i, int j, int qi, int qj, const composite_sum &c ) {
     push_down(v,i,j);
-    if ( qi > j or qj < i ) return ;
+    if ( not intersect(i,j,qi,qj) ) return ;
     if ( qi <= i and j <= qj ) {
-        //TODO
-        // original values start to matter here
-        //upd[v]= c.trim(i,j);
+        assert( not upd[v] );
+        upd[v]+= c.split(original[i]-original[qi]+1);
         return ;
     }
     auto k= (i+j)>>1;
-    update(2*v,i,k,qi,qj,c), update(2*v+1,k+1,j,qi,qj,c);
+    update(LEVO(v),i,k,qi,qj,c), update(PRAVO(v),k+1,j,qi,qj,c);
     push_up(v,i,j);
 }
 
 u64 query( int v, int i, int j, int qi, int qj ) {
     push_down(v,i,j);
-    if ( qi > j or qj < i )
+    if ( not intersect(i,j,qi,qj) )
         return 0;
     if ( qi <= i and j <= qj )
         return total[v];
     auto k= (i+j)>>1;
-    return (query(2*v,i,k,qi,qj)+query(2*v+1,k+1,j,qi,qj)) & MOD;
+    return (query(LEVO(v),i,k,qi,qj)+query(PRAVO(v),k+1,j,qi,qj)) & MOD;
 }
 
 int main() {
@@ -148,21 +154,20 @@ int main() {
             prefix[i][u] &= MOD;
     }
     for ( scanf("%d",&ts); ts-- and 2 == scanf("%d %d",&n,&m); ) {
-        len= 0, enlist(0);
-        for ( i= 0; i < m; ++i )
+        for ( len= 0, enlist(0), i= 0; i < m; ++i )
             scanf("%d %d %d",tp+i,lft+i,rgt+i), enlist(lft[i]), enlist(rgt[i]);
         for ( scanf("%d",&qr), queries= 0; qr-- and 1 == scanf("%d",&qrp[queries++]); enlist(qrp[queries-1]) ) ;
         sort(unique_pts,unique_pts+len);
         n= len= unique(unique_pts,unique_pts+len)-unique_pts;
         rank_space_reduction(lft,m), rank_space_reduction(rgt,m);
         rank_space_reduction(qrp,queries);
-        for ( i= 0; i < m; ++i )
-            update(1,0,n-1,lft[i],rgt[i],tp[i]==1?composite_sum::linear():\
-                    tp[i]==2?composite_sum::square():composite_sum::triple()); //FIXME
-        for ( i= 0; i < queries; ++i )
-            ans[i]= query(1,0,n-1,0,qrp[i]);
-        printf("Case %d:\n",++cs);
-        for ( i= 0; i < queries; printf("%llu\n",ans[i++]) ) ;
+        for ( build(1,0,n-1), i= 0; i < m; ++i )
+            update(1,0,n-1,lft[i],rgt[i],
+                    tp[i]==1?composite_sum::linear():\
+                    tp[i]==2?composite_sum::square():\
+                             composite_sum::triple());
+        for ( i= 0; i < queries; ans[i]= query(1,0,n-1,0,qrp[i]), ++i ) ;
+        for ( printf("Case %d:\n",++cs), i= 0; i < queries; printf("%llu\n",ans[i++]) ) ;
     }
     return 0;
 }
