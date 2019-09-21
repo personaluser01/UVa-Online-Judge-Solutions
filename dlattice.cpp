@@ -9,15 +9,20 @@ using i64= long long;
 set<i64> ans,x,y;
 
 int main() {
-    i64 a[2],b[2],i,j,k,t,signs[2]= {-1,1},s,r,MX= 0x400;
+    i64 a[2],b[2],i,j,s,r;
     freopen("input.txt","r",stdin);
     while ( cin >> a[0] >> b[0] >> a[1] >> b[1] >> s >> r ) {
-        for ( x.clear(), y.clear(), ans.clear(), t= 0; t < 2; ++t ) {
-            for ( i = -a[t^1]; i < a[t^1]; ++i )
-                x.insert(i * a[t] + signs[t] * s);
-            for ( j = -b[t^1]; j < b[t ^ 1]; ++j )
-                y.insert((j * b[t] + signs[t] * r));
-        }
+        auto lcmx= a[0]*a[1]/__gcd(a[0],a[1]),
+             lcmy= b[0]*b[1]/__gcd(b[0],b[1]);
+        assert( s <= a[0] and r <= b[0] );
+        for ( ans.clear(), x.clear(), y.clear(), i= 0; i < 2*lcmx/a[0]; ++i )
+            x.insert(a[0]*i);
+        for ( i= 0; i < 2*lcmx/a[1]; ++i )
+            x.insert(s+a[1]*i);
+        for ( j= 0; j < 2*lcmy/b[0]; ++j )
+            y.insert(b[0]*j);
+        for ( j= 0; j < 2*lcmy/b[1]; ++j )
+            y.insert(r+b[1]*j);
         vector<i64> vx, vy;
         for ( const auto xx: x ) vx.push_back(xx);
         for ( const auto yy: y ) vy.push_back(yy);
