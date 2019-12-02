@@ -1,11 +1,11 @@
 /**
  * 10729. Treequivalence
- * TOPIC: canonical representation, preorder label sequence, rotation around a node
- * status:
+ * TOPIC: tree representations, recursion, parsing
+ * status: Accepted
  */
 #include <bits/stdc++.h>
 using namespace std;
-#define N (0x80)
+#define N (0x400)
 #ifndef ONLINE_JUDGE
 #include "../test_runner.h"
 #endif
@@ -15,9 +15,8 @@ struct node {
     shared_ptr<node> parent= nullptr;
     char label{};
     node() {};
-    node( char c ): label(c), mask(0) {};
+    node( char c ): label(c) { sons.clear(); };
     int id{};
-    unsigned char mask{0};
 };
 
 int pos_of_closing[N], gid, in[N], out[N], tick;
@@ -49,122 +48,6 @@ vector<shared_ptr<node>> parse_from( const shared_ptr<node>& father, const strin
     return res;
 }
 
-void dfs( const int dir, const shared_ptr<node>& x, ostream &os, shared_ptr<node> nr ) {
-    if ( x == nullptr ) return ;
-    if ( is_ancestor(x,nr) ) {
-        if ( dir == 1 ) {
-            // first walk the children
-            // then climb up the parent
-            os << x->label;
-            if ( x->sons.empty() or x->sons.size() == 1 ) {
-                if ( x->parent != nullptr ) {
-                    os << '(';
-                    dfs(dir, x->parent, os, nr);
-                    os << ')';
-                }
-            }
-            else {
-                os << '(';
-                bool flag= true ;
-                for ( const auto& y: x->sons ) {
-                    if ( is_ancestor(y,nr) ) continue ;
-                    if ( not flag ) os << ',';
-                    dfs(dir,y,os,nr);
-                    flag= false ;
-                }
-                if ( x->parent != nullptr ) {
-                    if ( not flag ) os << ',';
-                    dfs(dir, x->parent, os, nr);
-                }
-                os << ')';
-            }
-        }
-        else {
-            // first climb up the parent
-            // then walk the children
-            os << x->label;
-            if ( x->sons.empty() or x->sons.size() == 1 ) {
-                if ( x->parent != nullptr ) {
-                    os << '(';
-                    dfs(dir, x->parent, os, nr);
-                    os << ')';
-                }
-            }
-            else {
-                os << '(';
-                bool flag= true ;
-                if ( x->parent != nullptr ) {
-                    dfs(dir, x->parent, os, nr);
-                    flag= false ;
-                }
-                for ( const auto& y: x->sons ) {
-                    if ( is_ancestor(y,nr) ) continue ;
-                    if ( not flag ) os << ',';
-                    dfs(dir,y,os,nr);
-                    flag= false ;
-                }
-                os << ')';
-            }
-        }
-    }
-    else {
-        os << x->label;
-        if ( x->sons.empty() ) return ;
-        os << '(';
-        bool flag= false ;
-        for ( const auto& y: x->sons ) {
-            if ( not flag )
-                os << ',';
-            dfs(dir,y,os,nr);
-            flag= true ;
-        }
-        os << ')';
-    }
-}
-
-void f( const shared_ptr<node>& new_root, ostream &os ) {
-    bool flag= true ;
-
-    assert( new_root->mask );
-    const auto dir= (new_root->mask&1);
-    // two variants for rotation
-    // we assume the size of the tree is >= 2
-    if ( dir == 1 ) {
-        os << new_root->label << '(';
-        for (const auto &y: new_root->sons) {
-            if (not flag) os << ',';
-            dfs(dir, y, os, new_root);
-            flag = false;
-        }
-        if (new_root->parent != nullptr) {
-            if (not flag) os << ',';
-            dfs(dir, new_root->parent, os, new_root);
-        }
-        os << ")\n";
-    }
-    else {
-        os << new_root->label << '(';
-        if (new_root->parent != nullptr) {
-            dfs(dir, new_root->parent, os, new_root);
-            flag = false;
-        }
-        for (const auto &y: new_root->sons) {
-            if (not flag) os << ',';
-            dfs(dir, y, os, new_root);
-            flag = false;
-        }
-        os << ")\n";
-    }
-}
-
-void search( const shared_ptr<node>& x, ostream &os ) {
-    if ( x == nullptr ) return ;
-    if ( x->mask )
-        f(x,os);
-    for ( const auto& y: x->sons )
-        search(y,os);
-}
-
 void display( const shared_ptr<node>& x, ostream &os ) {
     if ( x == nullptr ) return ;
     os << x->label;
@@ -180,17 +63,106 @@ void display( const shared_ptr<node>& x, ostream &os ) {
     os << ')';
 }
 
+string stringify( const shared_ptr<node> &x ) {
+    stringstream str;
+    display(x,str);
+    return std::move(str.str());
+}
+
+void display2( const shared_ptr<node>& x, const shared_ptr<node> &nr, ostream &os ) {
+    if ( x == nullptr ) return ;
+    if ( not is_ancestor(x,nr) ) {
+        display(x,os);
+        return ;
+    }
+    os << x->label;
+    if ( x->sons.empty() or x->sons.size() == 1 ) {
+        if ( x->parent != nullptr ) {
+            os << '(';
+            display2(x->parent, nr, os);
+            os << ')';
+        }
+    }
+    else {
+        assert( x->sons.size() >= 2 );
+        os << '(';
+        auto it= find_if(begin(x->sons),end(x->sons),[&]( const shared_ptr<node> &y ) {
+            return is_ancestor(y,nr);
+        });
+        assert( it != x->sons.end() );
+        bool flag= true ;
+        for ( auto jt= it; ++jt < end(x->sons); ) {
+            if ( not flag )
+                os << ',';
+            os << stringify(*jt);
+            flag= false ;
+        }
+        if ( x->parent != nullptr ) {
+            if ( not flag ) os << ',';
+            display2(x->parent,nr,os);
+            flag= false ;
+        }
+        for ( auto jt= begin(x->sons); jt < it; ++jt ) {
+            if ( not flag )
+                os << ',';
+            os << stringify(*jt);
+            flag= false ;
+        }
+        os << ')';
+    }
+}
+
+string g( const shared_ptr<node> &x, const shared_ptr<node> &nr ) {
+    stringstream str;
+    display2(x,nr,str);
+    return str.str();
+}
+
+void f( const shared_ptr<node>& new_root, ostream &os ) {
+    vector<string> reprs;
+    reprs.clear();
+    string anc_path;
+    for ( const auto &y: new_root->sons )
+        reprs.push_back(stringify(y));
+    if ( new_root->parent != nullptr )
+        anc_path= g(new_root->parent,new_root);
+    if ( reprs.empty() and anc_path.empty() ) {
+        os << new_root->label << endl;
+        return ;
+    }
+    for ( int i= 0; i <= reprs.size(); ++i ) {
+        os << new_root->label << '(';
+        bool flag= true ;
+        for ( int j= i; j < reprs.size(); ++j ) {
+            if ( not flag ) os << ',';
+            os << reprs[j];
+            flag= false ;
+        }
+        if ( new_root->parent != nullptr ) {
+            if (not flag) os << ',';
+            os << anc_path;
+            flag = false;
+        }
+        for ( int j= 0; j < i; ++j ) {
+            os << ',';
+            os << reprs[j];
+        }
+        os << ")\n";
+    }
+}
+
+void search( const shared_ptr<node>& x, ostream &os ) {
+    if ( x == nullptr ) return ;
+    f(x,os);
+    for ( const auto& y: x->sons )
+        search(y,os);
+}
+
+
 void floodfill( const shared_ptr<node> &x ) {
     in[x->id]= ++tick;
-    if ( not x->sons.empty() ) {
-        auto y= x->sons.back();
-        y->mask|= (1u<<1);
-        y= x->sons.front();
-        y->mask|= (1u<<0);
-    }
-    for ( auto y: x->sons ) {
+    for ( const auto& y: x->sons )
         floodfill(y);
-    }
     out[x->id]= ++tick;
 }
 
@@ -268,8 +240,9 @@ int main() {
         tick= -1, floodfill(r[0]);
         search( r[0], str );
         istringstream is(str.str());
+        //cout << "Target: " << repr[1] << endl;
         for ( string s; getline(is,s); ) {
-            cout << "Candidate: " << s << endl;
+            //cout << "Candidate: " << s << endl;
             if ( repr[1] == s ) {
                 cout << "same" << endl;
                 goto nxt;
