@@ -40,7 +40,7 @@ int query( int v, int i, int j, int qi, int qj ) {
         return idx[v];
     auto k= (i+j)>>1;
     auto l= query(2*v+1,i,k,qi,qj), r= query(2*v+2,k+1,j,qi,qj);
-    return house[l].second<house[r].second?l:r;
+    return house[l].second<=house[r].second?l:r;
 }
 
 #define oo (std::numeric_limits<i64>::max())
@@ -86,10 +86,15 @@ int main() {
                     assert( height.back() < home[i] );
                 continue;
             }
+            if ( distance(begin(height),it)+pillar[i]-1 >= n )
+                continue ;
             house.emplace_back(distance(begin(height),it),pillar[i]);
         }
 
         m= house.size(), sort(begin(house),end(house)); //sort them by left end
+        for ( const auto &a: house ) {
+            assert( 0 <= a.first and a.first < n );
+        }
         house.resize(m+1), house[m].second= +oo;
 
         auto cmp_by_end= [&]( int i, int j ) {
@@ -106,7 +111,7 @@ int main() {
         for ( i= 0; i < m; by_right.insert(i++) ) ;
         int ans= 0, T= -1, cur_pos= -1;
         // cerr << "m= " << m << endl;
-        for ( build(1,0,m-1); T+1 < n; ) {
+        for ( build(1,0,m-1);; ) {
             if ( house[query(1,0,m-1,0,cur_pos)].second < +oo and not by_right.empty() ) {
                 i= query(1,0,m-1,0,cur_pos);
                 assert( i < m );
@@ -117,14 +122,14 @@ int main() {
                 if ( min(end_time_lft,end_time_rgt) >= n ) break ;
                 if ( end_time_lft <= end_time_rgt ) {
                     ++ans, update(1,0,m-1,i,+oo);
-                    for ( T= end_time_lft; cur_pos+1 < m and house[cur_pos+1].first <= T; ++cur_pos )
-                        by_right.erase(cur_pos+1);
+                    for ( T= end_time_lft; cur_pos+1 < m and house[cur_pos+1].first <= T; )
+                        by_right.erase(++cur_pos);
                 }
                 else {
                     assert( j > cur_pos );
-                    ++ans, by_right.erase(jt), update(1,0,m-1,j,+oo);
-                    for ( T= end_time_rgt; cur_pos+1 < m and house[cur_pos+1].first <= T; ++cur_pos )
-                        by_right.erase(cur_pos+1);
+                    ++ans, by_right.erase(j), update(1,0,m-1,j,+oo);
+                    for ( T= end_time_rgt; cur_pos+1 < m and house[cur_pos+1].first <= T; )
+                        by_right.erase(++cur_pos);
                 }
             }
             else if ( house[query(1,0,m-1,0,cur_pos)].second < +oo ) {
@@ -141,9 +146,9 @@ int main() {
                 assert( i > cur_pos );
                 auto end_time_rgt= house[i].first+house[i].second-1;
                 if ( end_time_rgt >= n ) break ;
-                ++ans, by_right.erase(jt), update(1,0,m-1,i,+oo);
-                for ( T= end_time_rgt; cur_pos+1 < m and house[cur_pos+1].first <= T; ++cur_pos )
-                    by_right.erase(cur_pos+1);
+                ++ans, by_right.erase(i), update(1,0,m-1,i,+oo);
+                for ( T= end_time_rgt; cur_pos+1 < m and house[cur_pos+1].first <= T; )
+                    by_right.erase(++cur_pos);
             }
             else break ;
         }
