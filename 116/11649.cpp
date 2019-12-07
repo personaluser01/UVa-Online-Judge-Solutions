@@ -19,7 +19,7 @@ void build( int v, int i, int j ) {
         return ;
     }
     auto k= (i+j)>>1;
-    build(2*v+1,i,k), build(2*k+2,k+1,j);
+    build(2*v+1,i,k), build(2*v+2,k+1,j);
     idx[v]= (house[idx[2*v+1]].second<house[idx[2*v+2]].second?idx[2*v+1]:idx[2*v+2]);
 }
 
@@ -92,50 +92,58 @@ int main() {
         house.resize(m+1), house[m].second= +oo;
 
         auto cmp_by_end= [&]( int i, int j ) {
+            if ( house[i].second == +oo and house[j].second == +oo )
+                return true ;
+            if ( house[i].second == +oo )
+                return false ;
+            if ( house[j].second == +oo )
+                return true ;
             return house[i].first+house[i].second < house[j].first+house[j].second or
                     (house[i].first+house[i].second == house[j].first+house[j].second and i < j);
         };
         set<int, std::function<bool(int,int)>> by_right(cmp_by_end);
         for ( i= 0; i < m; by_right.insert(i++) ) ;
-        int ans= 0, T= -1, lft= 0, cur_pos= -1, rgt= by_right.size();
+        int ans= 0, T= -1, cur_pos= -1;
+        // cerr << "m= " << m << endl;
         for ( build(1,0,m-1); T+1 < n; ) {
-            if ( lft > 0 and rgt > 0 ) {
+            //cerr << lft << " " << rgt << " " << cur_pos << endl;
+            if ( house[query(1,0,m-1,0,cur_pos)].second < +oo and not by_right.empty() ) {
                 i= query(1,0,m-1,0,cur_pos);
                 assert( i < m );
                 auto jt= by_right.begin();
+                j= *jt;
                 auto end_time_lft= T+house[i].second;
-                auto end_time_rgt= house[*jt].first+house[*jt].second-1;
+                auto end_time_rgt= house[j].first+house[j].second-1;
                 if ( min(end_time_lft,end_time_rgt) >= n ) break ;
                 if ( end_time_lft <= end_time_rgt ) {
-                    ++ans, --lft, update(1,0,m-1,i,+oo);
-                    for ( T= end_time_lft; cur_pos+1 < m and house[cur_pos+1].first <= T; )
-                        if ( by_right.erase(++cur_pos) ) ++lft;
+                    ++ans, update(1,0,m-1,i,+oo);
+                    for ( T= end_time_lft; cur_pos+1 < m and house[cur_pos+1].first <= T; ++cur_pos )
+                        by_right.erase(cur_pos+1);
                 }
                 else {
-                    i= *jt;
-                    ++ans, --rgt, by_right.erase(jt), update(1,0,m-1,i,+oo);
-                    for ( T= end_time_rgt; cur_pos+1 < m and house[cur_pos+1].first <= T; )
-                        if ( by_right.erase(++cur_pos) ) ++lft;
+                    assert( j > cur_pos );
+                    ++ans, by_right.erase(jt), update(1,0,m-1,j,+oo);
+                    for ( T= end_time_rgt; cur_pos+1 < m and house[cur_pos+1].first <= T; ++cur_pos )
+                        by_right.erase(cur_pos+1);
                 }
             }
-            else if ( lft > 0 ) {
-                assert( rgt == 0 );
+            else if ( house[query(1,0,m-1,0,cur_pos)].second < +oo ) {
                 i= query(1,0,m-1,0,cur_pos);
                 assert( i < m );
                 auto end_time_lft= T+house[i].second;
                 if ( end_time_lft >= n ) break ;
-                ++ans, --lft, update(1,0,m-1,i,+oo);
+                ++ans, update(1,0,m-1,i,+oo);
                 T= end_time_lft;
             }
-            else if ( rgt > 0 ) {
-                assert( lft == 0 );
+            else if ( not by_right.empty() ) {
                 auto jt= by_right.begin();
                 i= *jt;
-                auto end_time_rgt= house[*jt].first+house[*jt].second-1;
+                assert( i > cur_pos );
+                auto end_time_rgt= house[i].first+house[i].second-1;
                 if ( end_time_rgt >= n ) break ;
-                ++ans, --rgt, by_right.erase(jt), update(1,0,m-1,i,+oo);
-                for ( T= end_time_rgt; cur_pos+1 < m and house[cur_pos+1].first <= T; )
-                    if ( by_right.erase(++cur_pos) ) ++lft;
+                ++ans, by_right.erase(jt), update(1,0,m-1,i,+oo);
+                for ( T= end_time_rgt; cur_pos+1 < m and house[cur_pos+1].first <= T; ++cur_pos )
+                    by_right.erase(cur_pos+1);
             }
             else break ;
         }
