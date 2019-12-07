@@ -14,10 +14,7 @@ vector<i64> height;
 vector<pair<i64,i64>> house;
 
 void build( int v, int i, int j ) {
-    if ( i == j ) {
-        idx[v]= i; //store the durations as values
-        return ;
-    }
+    if ( i == j ) { idx[v]= i; return ; }
     auto k= (i+j)>>1;
     build(2*v+1,i,k), build(2*v+2,k+1,j);
     idx[v]= (house[idx[2*v+1]].second<house[idx[2*v+2]].second?idx[2*v+1]:idx[2*v+2]);
@@ -51,6 +48,7 @@ int query( int v, int i, int j, int qi, int qj ) {
 int main() {
     ios_base::sync_with_stdio(false), cin.tie(nullptr);
     int i,j,k,ts,cs= 0;
+    const i64 HG= 10000, MR= 100000;
 #ifndef ONLINE_JUDGE
     freopen("11649.in","r",stdin);
 #endif
@@ -60,22 +58,22 @@ int main() {
             i64 A, B, C;
             cin >> A >> B >> C;
             if ( n >= 1 )
-                height[0]= (C%10000)+1;
+                height[0]= (C%HG)+1;
             if ( n >= 2 )
-                height[1]= ((A*height[0]+C)%10000)+1;
+                height[1]= ((A*height[0]+C)%HG)+1;
             for ( i= 2; i < n; ++i )
-                height[i]= ((A*height[i-1]+B*height[i-2]+C)%10000)+1;
+                height[i]= ((A*height[i-1]+B*height[i-2]+C)%HG)+1;
         }
         {
             i64 E,F,G,H,I,J;
             cin >> E >> F >> G >> H >> I >> J;
             if ( m >= 1 ) {
-                home[0] = (G % 10000) + 1;
-                pillar[0] = (J % 100000) + 1;
+                home[0] = (G % HG) + 1;
+                pillar[0] = (J % MR) + 1;
             }
             for ( i= 1; i < m; ++i ) {
-                home[i]= ((E*home[i-1]+F*pillar[i-1]+G)%10000)+1;
-                pillar[i]= ((H*pillar[i-1]+I*home[i-1]+J)%100000)+1;
+                home[i]= ((E*home[i-1]+F*pillar[i-1]+G)%HG)+1;
+                pillar[i]= ((H*pillar[i-1]+I*home[i-1]+J)%MR)+1;
             }
         }
         sort(begin(height),end(height)), house.clear();
@@ -83,8 +81,11 @@ int main() {
             // @see docs: Returns an iterator pointing to the _first_ element in the range [first,last)
             // which does not compare less than val.
             auto it= lower_bound(height.begin(),height.end(),home[i]);
-            if ( it == height.end() )
-                continue ;
+            if ( it == height.end() ) {
+                if ( not height.empty() )
+                    assert( height.back() < home[i] );
+                continue;
+            }
             house.emplace_back(distance(begin(height),it),pillar[i]);
         }
 
@@ -93,7 +94,7 @@ int main() {
 
         auto cmp_by_end= [&]( int i, int j ) {
             if ( house[i].second == +oo and house[j].second == +oo )
-                return true ;
+                return i < j;
             if ( house[i].second == +oo )
                 return false ;
             if ( house[j].second == +oo )
@@ -106,7 +107,6 @@ int main() {
         int ans= 0, T= -1, cur_pos= -1;
         // cerr << "m= " << m << endl;
         for ( build(1,0,m-1); T+1 < n; ) {
-            //cerr << lft << " " << rgt << " " << cur_pos << endl;
             if ( house[query(1,0,m-1,0,cur_pos)].second < +oo and not by_right.empty() ) {
                 i= query(1,0,m-1,0,cur_pos);
                 assert( i < m );
