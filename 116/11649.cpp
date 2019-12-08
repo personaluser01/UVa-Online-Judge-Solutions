@@ -11,9 +11,8 @@ using namespace std;
 using i64= int64_t;
 #define N 100100
 
-int m,n,idx[N<<4];
-i64 home[N],pillar[N],height[N];
-vector<pair<int,int>> house;
+int m,n,idx[N<<3],home[N],pillar[N],height[N];
+pair<int,int> house[N];
 
 void build( int v, int i, int j ) {
     if ( i == j ) { idx[v]= i; return ; }
@@ -31,8 +30,8 @@ void update( int v, int i, int j, int pos, i64 nv ) {
         return ;
     }
     auto k= (i+j)>>1;
-    update(2*v+1,i,k,pos,nv), update(2*v+2,k+1,j,pos,nv);
-    idx[v]= (house[idx[2*v+1]].second<house[idx[2*v+2]].second?idx[2*v+1]:idx[2*v+2]);
+    update((v<<1)+1,i,k,pos,nv), update((v<<1)+2,k+1,j,pos,nv);
+    idx[v]= (house[idx[(v<<1)+1]].second<house[idx[(v<<1)+2]].second?idx[(v<<1)+1]:idx[(v<<1)+2]);
 }
 
 int query( int v, int i, int j, int qi, int qj ) {
@@ -41,11 +40,12 @@ int query( int v, int i, int j, int qi, int qj ) {
     if ( qi <= i and j <= qj )
         return idx[v];
     auto k= (i+j)>>1;
-    auto l= query(2*v+1,i,k,qi,qj), r= query(2*v+2,k+1,j,qi,qj);
+    auto l= query((v<<1)+1,i,k,qi,qj), r= query((v<<1)+2,k+1,j,qi,qj);
     return house[l].second<=house[r].second?l:r;
 }
 
 #define oo (std::numeric_limits<int>::max())
+#define xchg(x,y) ((x)^=(y),(y)^=(x),(x)^=(y))
 
 int pos[N],cnt,heap[N<<2];
 #define bubble(i,j) (swap(pos[heap[i]],pos[heap[j]]), swap(heap[i],heap[j]))
@@ -69,7 +69,7 @@ int cmp( int x, int y ) {
     return x-y;
 }
 
-void push( int x ) {
+inline void push( int x ) {
     int i,j;
     if ( pos[x] < 0 )
         pos[heap[cnt]= x]= cnt, ++cnt;
@@ -105,41 +105,40 @@ int main() {
 #ifndef ONLINE_JUDGE
     freopen("11649.in","r",stdin);
 #endif
-    for ( cin >> ts; ts--; ) {
-        (cin>>n>>m);
-        {
-            i64 A, B, C;
-            cin >> A >> B >> C;
-            if ( n >= 1 )
-                height[0]= (C%HG)+1;
-            if ( n >= 2 )
-                height[1]= (A*height[0]+C)%HG+1;
-            for ( i= 2; i < n; ++i )
-                height[i]= (A*height[i-1]+B*height[i-2]+C)%HG+1;
-        }
-        {
-            i64 E,F,G,H,I,J;
-            cin >> E >> F >> G >> H >> I >> J;
-            if ( m >= 1 ) {
-                home[0] = (G % HG) + 1;
-                pillar[0] = (J % MR) + 1;
-            }
-            for ( i= 1; i < m; ++i ) {
-                home[i]= (E*home[i-1]+F*pillar[i-1]+G)%HG+1;
-                pillar[i]= (H*pillar[i-1]+I*home[i-1]+J)%MR+1;
-            }
-        }
-
-        sort(height,height+n), house.clear();
-
-        {
-
 #ifndef ONLINE_JUDGE
-            LOG_DURATION("computing lower bounds");
+    LOG_DURATION("total duration for all test cases");
 #endif
-            for (i = 0; i < m and n; ++i) {
-                // @see docs: Returns an iterator pointing to the _first_ element in the range [first,last)
-                // which does not compare less than val.
+    for ( cin >> ts; ts--; ) {
+        {
+            (cin >> n >> m);
+            {
+                i64 A, B, C;
+                cin >> A >> B >> C;
+                if (n >= 1)
+                    height[0] = (C % HG) + 1;
+                if (n >= 2)
+                    height[1] = (A * height[0] + C) % HG + 1;
+                for (i = 2; i < n; ++i)
+                    height[i] = (A * height[i - 1] + B * height[i - 2] + C) % HG + 1;
+            }
+            {
+                i64 E, F, G, H, I, J;
+                cin >> E >> F >> G >> H >> I >> J;
+                if (m >= 1) {
+                    home[0] = (G % HG) + 1;
+                    pillar[0] = (J % MR) + 1;
+                }
+                for (i = 1; i < m; ++i) {
+                    home[i] = (E * home[i - 1] + F * pillar[i - 1] + G) % HG + 1;
+                    pillar[i] = (H * pillar[i - 1] + I * home[i - 1] + J) % MR + 1;
+                }
+            }
+        }
+
+        sort(height,height+n);
+
+        {
+            for (k= 0, i = 0; i < m and n; ++i) {
                 int it;
                 if ( height[0] < home[i] ) {
                     if ( height[n-1] < home[i] )
@@ -152,20 +151,19 @@ int main() {
                 else it= 0;
                 if (it+pillar[i]-1 >= n)
                     continue;
-                house.emplace_back(it,pillar[i]);
+                house[k++]= {it,pillar[i]};
             }
         }
 
-        m= house.size(), sort(begin(house),end(house)); //sort them by left end
-        house.resize(m+1), house[m].second= +oo;
+        m= k, sort(house,house+m); //sort them by left end
+        house[m].second= +oo;
 
         cnt= 0, memset(pos,-1,sizeof pos);
-        for ( i= 0; i < m; push(i++) ) ;
+        {
+            for (i = 0; i < m; push(i++));
+        }
         int ans= 0, T= -1, cur_pos= -1;
         {
-#ifndef ONLINE_JUDGE
-            LOG_DURATION("The actual gizmo");
-#endif
             for (build(1, 0, m - 1);;) {
                 if (house[i = query(1, 0, m - 1, 0, cur_pos)].second < +oo and cnt > 0) {
                     assert(i < m);
