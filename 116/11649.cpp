@@ -1,7 +1,7 @@
 /**
  * 11649. Home, sweet home
- * TOPIC: STL, data structures, greedy
- * status: WIP
+ * TOPIC: STL, data structures, greedy, multiset, batch removal
+ * status: Accepted
  */
 #include <bits/stdc++.h>
 #ifndef ONLINE_JUDGE
@@ -136,75 +136,35 @@ int main() {
         }
 
         sort(height,height+n);
-
         {
             for (k= 0, i = 0; i < m and n; ++i) {
                 int it;
                 if ( height[0] < home[i] ) {
-                    if ( height[n-1] < home[i] )
-                        continue ;
+                    if ( height[n-1] < home[i] ) continue ;
                     auto low= 0, high= n-1, mid= low;
-                    for ( ;low+1<high; )
+                    for (;low+1<high;)
                         height[mid= (low+high)>>1]<home[i]?(low= mid):(high= mid);
                     it= high;
                 }
                 else it= 0;
-                if (it+pillar[i]-1 >= n)
-                    continue;
+                if (it+pillar[i]-1 >= n) continue;
                 house[k++]= {it,pillar[i]};
             }
         }
 
-        m= k, sort(house,house+m); //sort them by left end
+        m= k, sort(house,house+m,[]( const std::pair<int,int> &a, const std::pair<int,int> &b ) {
+            return a.second < b.second or (a.second == b.second and a.first < b.first);
+        });
         house[m].second= +oo;
-
-        cnt= 0, memset(pos,-1,sizeof pos);
-        {
-            for (i = 0; i < m; push(i++));
-        }
-        int ans= 0, T= -1, cur_pos= -1;
-        {
-            for (build(1, 0, m - 1);;) {
-                if (house[i = query(1, 0, m - 1, 0, cur_pos)].second < +oo and cnt > 0) {
-                    assert(i < m);
-                    j = pop();
-                    auto end_time_lft = T + house[i].second;
-                    auto end_time_rgt = house[j].first + house[j].second - 1;
-                    if (min(end_time_lft, end_time_rgt) >= n) break;
-                    if (end_time_lft <= end_time_rgt) {
-                        ++ans, update(1, 0, m - 1, i, +oo);
-                        for (T = end_time_lft; cur_pos + 1 < m and house[cur_pos + 1].first <= T;)
-                            remove(++cur_pos);
-                    } else {
-                        assert(j > cur_pos);
-                        auto excess = house[j].first - T - 1;
-                        assert(excess >= 0);
-                        if (house[i].second < +oo) {
-                            auto l = min(excess, house[i].second);
-                            update(1, 0, m - 1, i, house[i].second - l);
-                            excess -= l;
-                            assert(not excess);
-                        }
-                        ++ans, remove(j), update(1, 0, m - 1, j, +oo);
-                        for (T = end_time_rgt; cur_pos + 1 < m and house[cur_pos + 1].first <= T;)
-                            remove(++cur_pos);
-                    }
-                } else if (house[i].second < +oo) {
-                    assert(i < m);
-                    auto end_time_lft = T + house[i].second;
-                    if (end_time_lft >= n) break;
-                    ++ans, update(1, 0, m - 1, i, +oo);
-                    T = end_time_lft;
-                } else if (cnt > 0) {
-                    j = pop();
-                    assert(j > cur_pos);
-                    auto end_time_rgt = house[j].first + house[j].second - 1;
-                    if (end_time_rgt >= n) break;
-                    ++ans, remove(j), update(1, 0, m - 1, j, +oo);
-                    for (T = end_time_rgt; cur_pos + 1 < m and house[cur_pos + 1].first <= T;)
-                        remove(++cur_pos);
-                } else break;
-            }
+        int ans= 0;
+        std::multiset<i64> e;
+        for ( auto l= 0; l < n; e.insert(l++) ) ;
+        for ( i= 0; i < m and not e.empty(); ++i ) {
+            auto it= e.lower_bound(house[i].first);
+            auto jt= it;
+            for ( j= 0; j < house[i].second and jt != e.end(); ++j, ++jt ) ;
+            if ( j < house[i].second ) continue ;
+            e.erase(it,jt), ++ans;
         }
         cout << "Case " << ++cs << ": " << ans << endl;
     }
